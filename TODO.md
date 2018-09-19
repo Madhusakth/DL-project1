@@ -1,6 +1,9 @@
 # DL-project1
 1. Data Augmentation
 Flipping and noise (randomly on 15% each) DONE - [data download link](https://drive.google.com/open?id=1BpSy8XRDbskvrBK9dFHw87ZoK-DRTt_a)
+
+Also, mean image calculation done. Provided in data folder.
+
 Just replace train_aug and yearbook_train_aug.txt in the starter code uploaded in github.
 Also replace the valid dataset from the actual dataset. The starter code ahs just 1 example.
 
