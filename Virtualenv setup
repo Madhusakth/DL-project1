@@ -4,4 +4,7 @@
 source ./venv/bin/activate  # sh, bash, ksh, or zsh
 
 pip install $package
+
+pip install scikit-image
+pip install keras
 * one time installation
