@@ -8,6 +8,9 @@ module reset
 module load gcc/4.9.1 cuda/8.0 cudnn/5.1 python3/3.5.2 tensorflow-gpu/1.0.0
 
 
+to go the work directory: 
+cdw 
+
 To submit a job: 
 sbatch cmd.sh
 To check the queue: 
