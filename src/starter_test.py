@@ -8,6 +8,7 @@ import sys
 #import threading
 
 from skimage.io import imread
+from skimage.transform import resize
 import numpy as np
 #import tensorflow as tf
 
@@ -20,6 +21,7 @@ YEARBOOK_TRAIN_AUG_PATH = path.join(YEARBOOK_PATH, 'train_aug')
 YEARBOOK_VALID_PATH = path.join(YEARBOOK_PATH, 'valid')
 YEARBOOK_TRAIN_AUG_LABEL_PATH = path.join(YEARBOOK_PATH, 'yearbook_train_aug.txt')
 YEARBOOK_VALID_LABEL_PATH = path.join(YEARBOOK_PATH, 'yearbook_valid.txt')
+YEARBOOK_MEAN_IMAGE_PATH = path.join(YEARBOOK_PATH, 'mean_image.png')
 
 def read_labeled_image_list(image_list_file,image_prefixpath):
     f = open(image_list_file, 'r')
@@ -38,8 +40,9 @@ def read_labeled_image_list(image_list_file,image_prefixpath):
     shuffled_index_labels = list(range(len(labels)))
     random.seed(12345)
     random.shuffle(shuffled_index)
-
-    images = [images[i] for i in shuffled_index]
+    mean_image = imread(YEARBOOK_MEAN_IMAGE_PATH)
+    resized_mean_image = resize (mean_image, (186,186))
+    images = [(resize(images[i],(186,186))- resized_mean_image) for i in shuffled_index]
     labels = [labels[i] for i in shuffled_index]
 
     print('Found JPEG files across labels',(len(images), len(labels)))
@@ -56,5 +59,6 @@ def load_train():
   # Run it!
     print('load_train called')
     return read_labeled_image_list(YEARBOOK_TRAIN_AUG_LABEL_PATH,YEARBOOK_TRAIN_AUG_PATH)
+    #return read_labeled_image_list(YEARBOOK_VALID_LABEL_PATH,YEARBOOK_VALID_PATH)
 
 load_train()
