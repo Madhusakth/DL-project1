@@ -1,16 +1,8 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-from datetime import datetime
-import os
+from os import path
 import random
 import sys
-import threading
-from util import *
+import numpy as npf
 
-import numpy as np
-import tensorflow as tf
 
 SRC_PATH = path.dirname(path.abspath(__file__))
 DATA_PATH = path.join(SRC_PATH, '..', 'data')
@@ -43,9 +35,8 @@ def read_labeled_image_list(image_list_file):
         (len(filenames), len(labels)))
     return filenames, labels
 
-def main(unused_argv):
+def load_train():
   # Run it!
     image_list, label_list = read_labeled_image_list(YEARBOOK_TRAIN_AUG_LABEL_PATH)
 
-if __name__ == '__main__':
-  tf.app.run()
+load_train()

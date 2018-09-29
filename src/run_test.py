@@ -1,62 +1,82 @@
-from os import path
-import util
 import numpy as np
-import argparse
+import os
+import tensorflow as tf
+import util
 from skimage.io import imread
-from util import *
-from starter import load_train
-import csv
-#import vggrepo.vgg19_trainable_ours as vgg19
-#import vggrepo.utils as utils
+from skimage.transform import resize
 
-#from keras.applications.vgg16 import VGG16
-#model = VGG16()
-###################
+########################
 from keras import applications
 from keras.preprocessing.image import ImageDataGenerator
 from keras import optimizers
 from keras.models import Sequential, Model
-from keras.layers import Dropout, Flatten, Dense, GlobalAveragePooling2D
+from keras.layers import Dropout, Flatten, Dense, Activation, GlobalAveragePooling2D
 from keras import backend as k
 from keras.callbacks import ModelCheckpoint, LearningRateScheduler, TensorBoard, EarlyStopping
 from keras.utils import to_categorical
+########################
 
-###################
-#def main():
-#images,labels= load_train()
-#print(images.shape)
-#print(labels.shape)
-#np.save('images_train.npy',images)
-#np.save('labels_train.npy',labels)
-#print("saved data")
-
-images=np.load('images.npy')
-labels=np.load('labels.npy')
-print("loaded data successfully")
-min_labels = np.min(labels)
-max_labels = np.max(labels)
-
-labels_scaled = labels - min_labels
-one_hot_coded_labels = to_categorical(labels_scaled)
-remove = np.array([1907,1917,1918,1920,1921]) - min_labels
-one_labels_final = np.delete(one_hot_coded_labels,remove,axis=1)
-
-print("one_labels_final size",one_labels_final.shape)
-print("images shape",images.shape)
-img_width, img_height = 171,186
-#train_data_dir = "data/train"
-#validation_data_dir = "data/val"
-#?nb_train_samples = 4125
-#?nb_validation_samples = 466 
+# Network Parameters
+img_width, img_height = 256, 256
 batch_size = 16
 epochs = 50
+
+# Load Data
+train_images=np.load('train_aug_images.npy')
+train_labels=np.load('train_aug_labels.npy')
+print("Loaded train data successfully")
+print (train_images.shape)
+
+valid_images=np.load('valid_images.npy')
+valid_labels=np.load('valid_labels.npy')
+print("Loaded valid data successfully")
+
+# Convert Labels to one hot encoding vectors
+unique_labels = np.unique(train_labels)
+print ("Num Classes: ", len(unique_labels))
+index_to_labels = {i:j for i,j in enumerate(unique_labels)}
+labels_to_index = {j:i for i,j in enumerate(unique_labels)}
+
+train_labels_encoded = [labels_to_index[label] for label in train_labels]
+valid_labels_encoded = [labels_to_index[label] for label in valid_labels]
+
+one_hot_train_labels = to_categorical(train_labels_encoded, num_classes=len(unique_labels))
+one_hot_valid_labels = to_categorical(valid_labels_encoded, num_classes=len(unique_labels))
+
+# # Check model on small data set. See if it overfits
+# train_images = train_images[:10]
+# valid_images = valid_images[:10]
+# one_hot_train_labels = one_hot_train_labels[:10]
+# one_hot_valid_labels = one_hot_valid_labels[:10]
+
+# Subtract mean, resize and rescale images here
+mean_image = imread(os.path.join(util.DATA_PATH, 'yearbook','mean_image.png'))
+mean_image = np.pad(mean_image,((7,8),(0,0),(0,0)), 'constant', constant_values=(0))
+train_images = train_images - mean_image
+valid_images = valid_images - mean_image
+print (train_images.shape)
+
+train_images_resized = np.array([resize(image,(img_width, img_height, 3), mode='constant', anti_aliasing=True) for image in train_images])
+valid_images_resized = np.array([resize(image,(img_width, img_height, 3), mode='constant', anti_aliasing=True) for image in valid_images])
+
+print (train_images_resized.shape)
+
+# Rescale the images
+train_images = train_images_resized / 255.0
+valid_images = valid_images_resized / 255.0
+
+print (train_images.shape)
+
+print("one_labels_final size",one_hot_train_labels.shape)
+print("one_labels_final size",one_hot_valid_labels.shape)
+print("images shape",train_images.shape)
 
 
 model = applications.VGG19(weights = "imagenet", include_top=False, input_shape = (img_width, img_height, 3))
 
 # Freeze the layers which you don't want to train. Here I am freezing the first 5 layers.
-for layer in model.layers[:5]:
-    layer.trainable = False
+#for layer in model.layers[:5]:
+#    layer.trainable = False
 
 #Adding custom Layers 
 x = model.output
@@ -64,7 +84,8 @@ x = Flatten()(x)
 x = Dense(1024, activation="relu")(x)
 x = Dropout(0.5)(x)
 x = Dense(1024, activation="relu")(x)
-predictions = Dense(104, activation="softmax")(x)
+x = Dense(len(unique_labels), activation=None)(x)
+predictions = Activation(tf.nn.softmax)(x)
 
 # creating the final model 
 model_final = Model(input = model.input, output = predictions)
@@ -74,8 +95,8 @@ model_final.compile(loss = "categorical_crossentropy", optimizer = optimizers.SG
 
 
 # Save the model according to the conditions  
-checkpoint = ModelCheckpoint("vgg16_1.h5", monitor='val_acc', verbose=1, save_best_only=True, save_weights_only=False, mode='auto', period=1)
-early = EarlyStopping(monitor='val_acc', min_delta=0, patience=10, verbose=1, mode='auto')
+checkpoint = ModelCheckpoint("vgg19_1.h5", monitor='val_acc', verbose=1, save_best_only=True, save_weights_only=False, mode='auto', period=1)
+# early = EarlyStopping(monitor='val_acc', min_delta=0, patience=10, verbose=1, mode='auto')
 
 
 # Train the model 
@@ -88,6 +109,4 @@ validation_data = validation_generator,
 nb_val_samples = nb_validation_samples,
 callbacks = [checkpoint, early])
 '''
-model_final.fit(x = images,y=one_labels_final,batch_size=50,epochs=50,verbose=2,validation_split=0.3)
-
-                                                                                                                                                                                          94,0-1        Bot
+model_final.fit(x=train_images, y=one_hot_train_labels, batch_size=batch_size, epochs=epochs, verbose=2, validation_data=(valid_images, one_hot_valid_labels), callbacks = [checkpoint]) #callbacks = [checkpoint, early])
