@@ -1,9 +1,11 @@
 import numpy as np
 import os
+import random
 import tensorflow as tf
 import util
 from skimage.io import imread
 from skimage.transform import resize
+import sklearn
 
 ########################
 from keras import applications
@@ -44,10 +46,11 @@ one_hot_train_labels = to_categorical(train_labels_encoded, num_classes=len(uniq
 one_hot_valid_labels = to_categorical(valid_labels_encoded, num_classes=len(unique_labels))
 
 # # Check model on small data set. See if it overfits
-# train_images = train_images[:10]
-# valid_images = valid_images[:10]
-# one_hot_train_labels = one_hot_train_labels[:10]
-# one_hot_valid_labels = one_hot_valid_labels[:10]
+# k = 128
+# train_images = train_images[:k]
+# valid_images = valid_images[:k]
+# one_hot_train_labels = one_hot_train_labels[:k]
+# one_hot_valid_labels = one_hot_valid_labels[:k]
 
 # Subtract mean, resize and rescale images here
 mean_image = imread(os.path.join(util.DATA_PATH, 'yearbook','mean_image.png'))
@@ -70,6 +73,23 @@ print (train_images.shape)
 print("one_labels_final size",one_hot_train_labels.shape)
 print("one_labels_final size",one_hot_valid_labels.shape)
 print("images shape",train_images.shape)
+
+def generator(data_x, data_y, batch_size=32):
+    num_samples = len(data_x)
+    shuffled_index = list(range(num_samples))
+    random.seed(12345)
+    while 1:
+        random.shuffle(shuffled_index)
+        data_x = data_x[shuffled_index]
+        data_y = data_y[shuffled_index]
+        for offset in range(0, num_samples, batch_size):
+            X_train = np.array(data_x[offset:offset+batch_size])
+            y_train = np.array(data_y[offset:offset+batch_size])
+            
+            yield sklearn.utils.shuffle(X_train, y_train)
+
+train_generator = generator(train_images, one_hot_train_labels, batch_size=batch_size)
+valid_generator = generator(valid_images, one_hot_valid_labels, batch_size=batch_size)
 
 
 model = applications.VGG19(weights = "imagenet", include_top=False, input_shape = (img_width, img_height, 3))
@@ -109,4 +129,5 @@ validation_data = validation_generator,
 nb_val_samples = nb_validation_samples,
 callbacks = [checkpoint, early])
 '''
-model_final.fit(x=train_images, y=one_hot_train_labels, batch_size=batch_size, epochs=epochs, verbose=2, validation_data=(valid_images, one_hot_valid_labels), callbacks = [checkpoint]) #callbacks = [checkpoint, early])
+# model_final.fit(x=train_images, y=one_hot_train_labels, batch_size=batch_size, epochs=epochs, verbose=2, validation_data=(valid_images, one_hot_valid_labels), callbacks = [checkpoint]) #callbacks = [checkpoint, early])
+model_final.fit_generator(train_generator, steps_per_epoch = len(train_images)/batch_size, validation_data=valid_generator, validation_steps=len(valid_labels)/batch_size, epochs=epochs, verbose=2, shuffle=True, callbacks = [checkpoint]) 
