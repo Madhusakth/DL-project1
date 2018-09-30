@@ -58,6 +58,10 @@ def read_labeled_image_list(image_list_file, image_prefixpath, save_prefix):
 
 def save_train():
     print('Saving train data as numpy array')
+    read_labeled_image_list(YEARBOOK_TRAIN_LABEL_PATH,YEARBOOK_TRAIN_PATH, 'train_non-aug')
+
+def save_train_aug():
+    print('Saving train_aug data as numpy array')
     read_labeled_image_list(YEARBOOK_TRAIN_AUG_LABEL_PATH,YEARBOOK_TRAIN_AUG_PATH, 'train_aug')
 
 def save_valid():
@@ -65,5 +69,6 @@ def save_valid():
     read_labeled_image_list(YEARBOOK_VALID_LABEL_PATH,YEARBOOK_VALID_PATH, 'valid')
 
 save_train()
+save_train_aug()
 save_valid()
 
