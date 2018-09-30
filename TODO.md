@@ -2,7 +2,7 @@
 1. Data Augmentation
 Flipping and noise (randomly on 15% each) DONE - [data download link](https://drive.google.com/open?id=1BpSy8XRDbskvrBK9dFHw87ZoK-DRTt_a)
 
-Directly download npy files from [here](https://drive.google.com/open?id=1azvy0fzr-PLFQ7FuZDmrZR1fPm9qvWcw) and [here](https://www.google.com).
+Directly download npy files from [here](https://drive.google.com/open?id=1azvy0fzr-PLFQ7FuZDmrZR1fPm9qvWcw) and [here](https://drive.google.com/open?id=1nvDjmYMNzUOc1MC8vk0NGxjTczt-Qna-).
 Also, mean image calculation done. Provided in data folder.
 
 Just replace train_aug and yearbook_train_aug.txt in the starter code uploaded in github.
