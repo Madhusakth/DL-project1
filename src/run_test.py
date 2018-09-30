@@ -1,11 +1,14 @@
 import numpy as np
 import os
 import random
+import sklearn
+import sys
+import time
 import tensorflow as tf
 import util
 from skimage.io import imread
 from skimage.transform import resize
-import sklearn
+
 
 ########################
 from keras import applications
@@ -103,19 +106,34 @@ x = model.output
 x = Flatten()(x)
 x = Dense(1024, activation="relu")(x)
 x = Dropout(0.5)(x)
-x = Dense(1024, activation="relu")(x)
+x = Dense(512, activation="relu")(x)
 x = Dense(len(unique_labels), activation=None)(x)
 predictions = Activation(tf.nn.softmax)(x)
 
-# creating the final model 
+# Creating the final model 
 model_final = Model(input = model.input, output = predictions)
 
+checkpoint_name="vgg19_1"
+# Load pre-trained weights
+if os.path.isfile(checkpoint_name):
+    timestr = time.strftime("%Y%m%d-%H%M%S")
+    checkpoint_name += timestr
+
+# Load pre-trained weights
+if len(sys.argv) >= 2 and os.path.isfile(sys.argv[1]):
+    print ("Loading weights from ", sys.argv[1])
+    model_final.load_weights(sys.argv[1])
+    timestr = time.strftime("%Y%m%d-%H%M%S")
+    checkpoint_name = sys.argv[1][0:-3]+timestr
+
+print ("Saving weights to ", checkpoint_name)
+
 # compile the model 
-model_final.compile(loss = "categorical_crossentropy", optimizer = optimizers.SGD(lr=0.0001, momentum=0.9), metrics=["accuracy"])
+model_final.compile(loss = "categorical_crossentropy", optimizer = optimizers.SGD(lr=0.001, momentum=0.9), metrics=["accuracy"])
 
 
 # Save the model according to the conditions  
-checkpoint = ModelCheckpoint("vgg19_1.h5", monitor='val_acc', verbose=1, save_best_only=True, save_weights_only=False, mode='auto', period=1)
+checkpoint = ModelCheckpoint(checkpoint_name+'.h5', monitor='val_acc', verbose=1, save_best_only=True, save_weights_only=False, mode='auto', period=1)
 # early = EarlyStopping(monitor='val_acc', min_delta=0, patience=10, verbose=1, mode='auto')
 
 
