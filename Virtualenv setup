@@ -7,4 +7,5 @@ pip install $package
 
 pip install scikit-image
 pip install keras
+pip install sklearn
 * one time installation
