@@ -25,7 +25,7 @@ from keras.utils import to_categorical
 img_width, img_height = 256, 256
 batch_size = 16
 epochs = 50
-checkpoint_name="vgg19_1_Classification"
+checkpoint_name="vgg19_1_CE_L1"
 
 
 # Load Data
@@ -56,13 +56,13 @@ print ("Mean value", mean_label)
 
 
 # # Check model on small data set. See if it overfits
-k = 32
-train_images = train_images[:k]
-valid_images = valid_images[:k]
-train_labels = train_labels[:k]
-valid_labels = valid_labels[:k]
-one_hot_train_labels = one_hot_train_labels[:k]
-one_hot_valid_labels = one_hot_valid_labels[:k]
+# k = 32
+# train_images = train_images[:k]
+# valid_images = valid_images[:k]
+# train_labels = train_labels[:k]
+# valid_labels = valid_labels[:k]
+# one_hot_train_labels = one_hot_train_labels[:k]
+# one_hot_valid_labels = one_hot_valid_labels[:k]
 
 
 # Subtract mean, resize and rescale images here
@@ -147,12 +147,17 @@ if len(sys.argv) >= 2 and os.path.isfile(sys.argv[1]):
 
 print ("Saving weights to ", checkpoint_name)
 
+metrics = {
+    "classification": "accuracy",
+    "regression": "mae"
+}
+
 # compile the model 
-model_final.compile(loss=losses, loss_weights=lossWeights, optimizer = optimizers.SGD(lr=0.001, momentum=0.9), metrics=["accuracy", "mae"])
+model_final.compile(loss=losses, loss_weights=lossWeights, optimizer = optimizers.SGD(lr=0.001, momentum=0.9), metrics=metrics)
 
 
 # Save the model according to the conditions  
-checkpoint = ModelCheckpoint(checkpoint_name+'.h5', monitor='val_acc', verbose=1, save_best_only=True, save_weights_only=False, mode='auto', period=1)
+checkpoint = ModelCheckpoint(checkpoint_name+'.h5', monitor='val_classification_acc', verbose=1, save_best_only=True, save_weights_only=False, mode='auto', period=1)
 # early = EarlyStopping(monitor='val_acc', min_delta=0, patience=10, verbose=1, mode='auto')
 
 
