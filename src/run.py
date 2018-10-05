@@ -96,6 +96,7 @@ class Predictor:
 		dict_np = np.load(path.join(MODEL_PATH,dictionary_file))
 		for i,d in enumerate(dict_np):
 			self.dictionary[i] = d
+	
 	def predict(self, image_path):
 		s = time.time()
 		

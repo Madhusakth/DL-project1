@@ -25,7 +25,7 @@ from keras.utils import to_categorical
 img_width, img_height = 256, 256
 batch_size = 16
 epochs = 50
-checkpoint_name="vgg19_1_L1"
+checkpoint_name="vgg19_1_Classification"
 
 
 # Load Data
@@ -38,18 +38,31 @@ valid_images=np.load('valid_images.npy', mmap_mode='r')
 valid_labels=np.load('valid_labels.npy')
 print("Loaded valid data successfully")
 
+# Convert Labels to one hot encoding vectors
+unique_labels = np.unique(train_labels)
+print ("Num Classes: ", len(unique_labels))
+index_to_labels = {i:j for i,j in enumerate(unique_labels)}
+labels_to_index = {j:i for i,j in enumerate(unique_labels)}
+
+train_labels_encoded = [labels_to_index[label] for label in train_labels]
+valid_labels_encoded = [labels_to_index[label] for label in valid_labels]
+
+one_hot_train_labels = to_categorical(train_labels_encoded, num_classes=len(unique_labels))
+one_hot_valid_labels = to_categorical(valid_labels_encoded, num_classes=len(unique_labels))
+
+
 mean_label =  np.mean(train_labels)
 print ("Mean value", mean_label)
 
-train_labels = train_labels - mean_label
-valid_labels = valid_labels - mean_label
 
-# Check model on small data set. See if it overfits
-# k = 32
-# train_images = train_images[:k]
-# valid_images = valid_images[:k]
-# train_labels = train_labels[:k]
-# valid_labels = valid_labels[:k]
+# # Check model on small data set. See if it overfits
+k = 32
+train_images = train_images[:k]
+valid_images = valid_images[:k]
+train_labels = train_labels[:k]
+valid_labels = valid_labels[:k]
+one_hot_train_labels = one_hot_train_labels[:k]
+one_hot_valid_labels = one_hot_valid_labels[:k]
 
 
 # Subtract mean, resize and rescale images here
@@ -66,12 +79,12 @@ def preprocess_img(image_set):
     #print (image_set.shape)
     return image_set
 
-print("one_labels_final size",train_labels.shape)
-print("one_labels_final size",valid_labels.shape)
+print("one_labels_final size",one_hot_train_labels.shape)
+print("one_labels_final size",one_hot_valid_labels.shape)
 print("images shape",train_images.shape)
 
-def generator(data_x, data_y, batch_size=32):
-    num_samples = len(data_y)
+def generator(data_x, data_y1, data_y2, batch_size=32):
+    num_samples = len(data_y1)
     shuffled_index = list(range(num_samples))
     random.seed(12345)
     while 1:
@@ -79,12 +92,14 @@ def generator(data_x, data_y, batch_size=32):
         for offset in range(0, num_samples, batch_size):
             shuffled_batch = shuffled_index[offset:offset+batch_size]
             X_train = data_x[shuffled_batch]
-            y_train = data_y[shuffled_batch]
+            y1_train = data_y1[shuffled_batch]
+            y2_train = data_y2[shuffled_batch] - mean_label
             X_train = preprocess_img(X_train)
-            yield sklearn.utils.shuffle(X_train, y_train)
+            y_train = {"classification": y1_train, "regression": y2_train}
+            yield (X_train, y_train)
 
-train_generator = generator(train_images, train_labels, batch_size=batch_size)
-valid_generator = generator(valid_images, valid_labels, batch_size=batch_size)
+train_generator = generator(train_images, one_hot_train_labels, train_labels, batch_size=batch_size)
+valid_generator = generator(valid_images, one_hot_valid_labels, valid_labels, batch_size=batch_size)
 
 
 model = applications.VGG19(weights = "imagenet", include_top=False, input_shape = (img_width, img_height, 3))
@@ -98,11 +113,24 @@ x = model.output
 x = Flatten()(x)
 x = Dense(1024, activation="relu")(x)
 x = Dropout(0.5)(x)
-x = Dense(512, activation="relu")(x)
-predictions = Dense(1, activation=None)(x)
+
+x1 = Dense(512, activation="relu")(x)
+x1 = Dense(len(unique_labels), activation=None)(x1)
+predictions_CE = Activation(tf.nn.softmax, name="classification")(x1)
+
+x2 = Dense(512, activation="relu")(x)
+x2 = Dense(len(unique_labels), activation=None)(x2)
+predictions_L1 = Dense(1, activation=None, name="regression")(x2)
+
+losses = {
+    "classification": "categorical_crossentropy",
+    "regression": "mean_absolute_error"
+}
+# hyper-parameter
+lossWeights = {"classification": 1.0, "regression": 0.05}
 
 # Creating the final model 
-model_final = Model(input = model.input, output = predictions)
+model_final = Model(input = model.input, output = [predictions_CE, predictions_L1])
 
 
 # Load pre-trained weights
@@ -120,13 +148,23 @@ if len(sys.argv) >= 2 and os.path.isfile(sys.argv[1]):
 print ("Saving weights to ", checkpoint_name)
 
 # compile the model 
-model_final.compile(loss = "mean_absolute_error", optimizer = optimizers.Adam(lr=0.001), metrics=["mae"])
+model_final.compile(loss=losses, loss_weights=lossWeights, optimizer = optimizers.SGD(lr=0.001, momentum=0.9), metrics=["accuracy", "mae"])
 
 
 # Save the model according to the conditions  
-checkpoint = ModelCheckpoint(checkpoint_name+'.h5', monitor='val_mean_absolute_error', verbose=1, save_best_only=True, save_weights_only=False, mode='auto', period=1)
+checkpoint = ModelCheckpoint(checkpoint_name+'.h5', monitor='val_acc', verbose=1, save_best_only=True, save_weights_only=False, mode='auto', period=1)
 # early = EarlyStopping(monitor='val_acc', min_delta=0, patience=10, verbose=1, mode='auto')
 
 
 # Train the model 
+'''
+model_final.fit_generator(
+train_generator,
+samples_per_epoch = 28000,
+epochs = epochs,
+validation_data = validation_generator,
+nb_val_samples = nb_validation_samples,
+callbacks = [checkpoint, early])
+'''
+# model_final.fit(x=train_images, y=one_hot_train_labels, batch_size=batch_size, epochs=epochs, verbose=2, validation_data=(valid_images, one_hot_valid_labels), callbacks = [checkpoint]) #callbacks = [checkpoint, early])
 model_final.fit_generator(train_generator, steps_per_epoch = len(train_images)/batch_size, validation_data=valid_generator, validation_steps=len(valid_labels)/batch_size, epochs=epochs, verbose=2, shuffle=True, callbacks = [checkpoint]) 
